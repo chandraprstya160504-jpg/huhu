@@ -1,0 +1,347 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Status Config
+local heightOffset = 1.2
+local crownScale = 1.0
+local crownActive = true
+local headlessActive = true
+local isMinimized = false
+
+-- Asset ID Original 8-Bit Royal Crown
+local CROWN_MESH = "rbxassetid://10159599525"
+local CROWN_TEX  = "rbxassetid://10159596328"
+
+-- Safe Parent GUI Generator
+local function getSafeParentGui()
+    if gethui then return gethui() end
+    local success, coreGui = pcall(function() return game:GetService("CoreGui") end)
+    if success and coreGui then return coreGui end
+    return LocalPlayer:WaitForChild("PlayerGui", 5)
+end
+
+-- Membuat Part Mahkota di Workspace (Bypass Sistem Hapus Evade)
+local crownPart = workspace:FindFirstChild("EvadeRoyalCrownPart")
+if crownPart then crownPart:Destroy() end
+
+crownPart = Instance.new("Part")
+crownPart.Name = "EvadeRoyalCrownPart"
+crownPart.Size = Vector3.new(1, 1, 1)
+crownPart.CanCollide = false
+crownPart.CastShadow = false
+crownPart.Massless = true
+crownPart.Anchored = true
+crownPart.Transparency = 1
+
+local crownMesh = Instance.new("SpecialMesh")
+crownMesh.Name = "CrownMesh"
+crownMesh.MeshType = Enum.MeshType.FileMesh
+crownMesh.MeshId = CROWN_MESH
+crownMesh.TextureId = CROWN_TEX
+crownMesh.Scale = Vector3.new(crownScale, crownScale, crownScale)
+crownMesh.Parent = crownPart
+
+crownPart.Parent = workspace
+
+-- Connection variable
+local renderConnection
+
+-- RenderStepped Loop (Update Posisi & Visual setiap frame)
+renderConnection = RunService.RenderStepped:Connect(function()
+    local char = LocalPlayer.Character
+    local head = char and char:FindFirstChild("Head")
+
+    -- 1. HEADLESS EXECUTION (Khusus Evade Engine)
+    if char and head then
+        if headlessActive then
+            head.Transparency = 1
+            head.LocalTransparencyModifier = 1 -- Memaksa transparansi menembus sistem kamera Evade
+            
+            for _, v in pairs(head:GetChildren()) do
+                if v:IsA("Decal") then
+                    v.Transparency = 1
+                elseif v:IsA("SpecialMesh") then
+                    v.Scale = Vector3.zero
+                end
+            end
+        else
+            head.Transparency = 0
+            head.LocalTransparencyModifier = 0
+            for _, v in pairs(head:GetChildren()) do
+                if v:IsA("Decal") then
+                    v.Transparency = 0
+                elseif v:IsA("SpecialMesh") then
+                    v.Scale = Vector3.new(1, 1, 1)
+                end
+            end
+        end
+    end
+
+    -- 2. 8-BIT ROYAL CROWN EXECUTION
+    if crownActive and char and head and head:IsDescendantOf(workspace) then
+        crownPart.Parent = workspace
+        crownPart.Transparency = 0
+        crownPart.LocalTransparencyModifier = 0
+        crownMesh.Scale = Vector3.new(crownScale, crownScale, crownScale)
+        
+        -- Kunci posisi Mahkota tepat di atas CFrame Kepala
+        crownPart.CFrame = head.CFrame * CFrame.new(0, heightOffset, 0)
+    else
+        crownPart.Transparency = 1
+    end
+end)
+
+-- Helper GUI UICorner
+local function createCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or 6)
+    corner.Parent = parent
+    return corner
+end
+
+-- Generator GUI Menu Utama
+local function buildGUI()
+    local parentGui = getSafeParentGui()
+    if not parentGui then return end
+
+    if parentGui:FindFirstChild("EvadeVisualGui") then
+        parentGui.EvadeVisualGui:Destroy()
+    end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "EvadeVisualGui"
+    gui.ResetOnSpawn = false
+    gui.Parent = parentGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 230, 0, 210)
+    frame.Position = UDim2.new(0, 20, 0.3, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(24, 26, 32)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.ClipsDescendants = true
+    frame.Parent = gui
+    createCorner(frame, 8)
+
+    -- Bar Judul / Header
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 32)
+    titleBar.BackgroundColor3 = Color3.fromRGB(34, 37, 46)
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = frame
+
+    local titleText = Instance.new("TextLabel")
+    titleText.Size = UDim2.new(1, -60, 1, 0)
+    titleText.Position = UDim2.new(0, 10, 0, 0)
+    titleText.Text = "Evade Headless & Crown"
+    titleText.Font = Enum.Font.SourceSansBold
+    titleText.TextSize = 14
+    titleText.TextColor3 = Color3.fromRGB(240, 240, 240)
+    titleText.BackgroundTransparency = 1
+    titleText.TextXAlignment = Enum.TextXAlignment.Left
+    titleText.Parent = titleBar
+
+    -- Tombol Minimize (_)
+    local btnMinimize = Instance.new("TextButton")
+    btnMinimize.Size = UDim2.new(0, 22, 0, 22)
+    btnMinimize.Position = UDim2.new(1, -52, 0, 5)
+    btnMinimize.Text = "_"
+    btnMinimize.Font = Enum.Font.SourceSansBold
+    btnMinimize.TextSize = 14
+    btnMinimize.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btnMinimize.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
+    btnMinimize.BorderSizePixel = 0
+    btnMinimize.Parent = titleBar
+    createCorner(btnMinimize, 4)
+
+    -- Tombol Close (X)
+    local btnClose = Instance.new("TextButton")
+    btnClose.Size = UDim2.new(0, 22, 0, 22)
+    btnClose.Position = UDim2.new(1, -26, 0, 5)
+    btnClose.Text = "X"
+    btnClose.Font = Enum.Font.SourceSansBold
+    btnClose.TextSize = 13
+    btnClose.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnClose.BackgroundColor3 = Color3.fromRGB(200, 50, 60)
+    btnClose.BorderSizePixel = 0
+    btnClose.Parent = titleBar
+    createCorner(btnClose, 4)
+
+    local content = Instance.new("Frame")
+    content.Name = "ContentContainer"
+    content.Size = UDim2.new(1, 0, 1, -32)
+    content.Position = UDim2.new(0, 0, 0, 32)
+    content.BackgroundTransparency = 1
+    content.Parent = frame
+
+    local COLOR_ON = Color3.fromRGB(46, 160, 80)
+    local COLOR_OFF = Color3.fromRGB(180, 50, 60)
+    local COLOR_BTN = Color3.fromRGB(42, 45, 55)
+
+    -- Tombol Toggle Headless
+    local btnHeadless = Instance.new("TextButton")
+    btnHeadless.Size = UDim2.new(0.9, 0, 0, 24)
+    btnHeadless.Position = UDim2.new(0.05, 0, 0, 8)
+    btnHeadless.Text = headlessActive and "Headless: ON" or "Headless: OFF"
+    btnHeadless.Font = Enum.Font.SourceSansBold
+    btnHeadless.TextSize = 13
+    btnHeadless.BackgroundColor3 = headlessActive and COLOR_ON or COLOR_OFF
+    btnHeadless.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnHeadless.BorderSizePixel = 0
+    btnHeadless.Parent = content
+    createCorner(btnHeadless, 5)
+
+    -- Tombol Toggle Mahkota
+    local btnCrown = Instance.new("TextButton")
+    btnCrown.Size = UDim2.new(0.9, 0, 0, 24)
+    btnCrown.Position = UDim2.new(0.05, 0, 0, 38)
+    btnCrown.Text = crownActive and "8-Bit Crown: ON" or "8-Bit Crown: OFF"
+    btnCrown.Font = Enum.Font.SourceSansBold
+    btnCrown.TextSize = 13
+    btnCrown.BackgroundColor3 = crownActive and COLOR_ON or COLOR_OFF
+    btnCrown.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnCrown.BorderSizePixel = 0
+    btnCrown.Parent = content
+    createCorner(btnCrown, 5)
+
+    -- Pengatur Tinggi Mahkota
+    local lblHeight = Instance.new("TextLabel")
+    lblHeight.Size = UDim2.new(0.9, 0, 0, 14)
+    lblHeight.Position = UDim2.new(0.05, 0, 0, 68)
+    lblHeight.Text = "Tinggi Mahkota: " .. string.format("%.1f", heightOffset)
+    lblHeight.Font = Enum.Font.SourceSans
+    lblHeight.TextSize = 12
+    lblHeight.TextColor3 = Color3.fromRGB(180, 185, 200)
+    lblHeight.BackgroundTransparency = 1
+    lblHeight.Parent = content
+
+    local btnHeightDown = Instance.new("TextButton")
+    btnHeightDown.Size = UDim2.new(0.43, 0, 0, 22)
+    btnHeightDown.Position = UDim2.new(0.05, 0, 0, 84)
+    btnHeightDown.Text = "- Turun"
+    btnHeightDown.Font = Enum.Font.SourceSansBold
+    btnHeightDown.TextSize = 12
+    btnHeightDown.BackgroundColor3 = COLOR_BTN
+    btnHeightDown.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btnHeightDown.BorderSizePixel = 0
+    btnHeightDown.Parent = content
+    createCorner(btnHeightDown, 4)
+
+    local btnHeightUp = Instance.new("TextButton")
+    btnHeightUp.Size = UDim2.new(0.43, 0, 0, 22)
+    btnHeightUp.Position = UDim2.new(0.52, 0, 0, 84)
+    btnHeightUp.Text = "+ Naik"
+    btnHeightUp.Font = Enum.Font.SourceSansBold
+    btnHeightUp.TextSize = 12
+    btnHeightUp.BackgroundColor3 = COLOR_BTN
+    btnHeightUp.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btnHeightUp.BorderSizePixel = 0
+    btnHeightUp.Parent = content
+    createCorner(btnHeightUp, 4)
+
+    -- Pengatur Skala Ukuran Mahkota
+    local lblScale = Instance.new("TextLabel")
+    lblScale.Size = UDim2.new(0.9, 0, 0, 14)
+    lblScale.Position = UDim2.new(0.05, 0, 0, 112)
+    lblScale.Text = "Ukuran Mahkota: " .. string.format("%.1f", crownScale)
+    lblScale.Font = Enum.Font.SourceSans
+    lblScale.TextSize = 12
+    lblScale.TextColor3 = Color3.fromRGB(180, 185, 200)
+    lblScale.BackgroundTransparency = 1
+    lblScale.Parent = content
+
+    local btnScaleDown = Instance.new("TextButton")
+    btnScaleDown.Size = UDim2.new(0.43, 0, 0, 22)
+    btnScaleDown.Position = UDim2.new(0.05, 0, 0, 128)
+    btnScaleDown.Text = "- Kecil"
+    btnScaleDown.Font = Enum.Font.SourceSansBold
+    btnScaleDown.TextSize = 12
+    btnScaleDown.BackgroundColor3 = COLOR_BTN
+    btnScaleDown.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btnScaleDown.BorderSizePixel = 0
+    btnScaleDown.Parent = content
+    createCorner(btnScaleDown, 4)
+
+    local btnScaleUp = Instance.new("TextButton")
+    btnScaleUp.Size = UDim2.new(0.43, 0, 0, 22)
+    btnScaleUp.Position = UDim2.new(0.52, 0, 0, 128)
+    btnScaleUp.Text = "+ Besar"
+    btnScaleUp.Font = Enum.Font.SourceSansBold
+    btnScaleUp.TextSize = 12
+    btnScaleUp.BackgroundColor3 = COLOR_BTN
+    btnScaleUp.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btnScaleUp.BorderSizePixel = 0
+    btnScaleUp.Parent = content
+    createCorner(btnScaleUp, 4)
+
+    -- Event Connections UI
+    btnMinimize.MouseButton1Click:Connect(function()
+        isMinimized = not isMinimized
+        content.Visible = not isMinimized
+        frame.Size = isMinimized and UDim2.new(0, 230, 0, 32) or UDim2.new(0, 230, 0, 210)
+        btnMinimize.Text = isMinimized and "+" or "_"
+    end)
+
+    btnClose.MouseButton1Click:Connect(function()
+        -- Hentikan loop
+        if renderConnection then
+            renderConnection:Disconnect()
+        end
+        -- Hapus item mahkota
+        if crownPart then
+            crownPart:Destroy()
+        end
+        -- Mengembalikan kondisi kepala jika karakter masih ada
+        local char = LocalPlayer.Character
+        local head = char and char:FindFirstChild("Head")
+        if head then
+            head.Transparency = 0
+            head.LocalTransparencyModifier = 0
+            for _, v in pairs(head:GetChildren()) do
+                if v:IsA("Decal") then
+                    v.Transparency = 0
+                elseif v:IsA("SpecialMesh") then
+                    v.Scale = Vector3.new(1, 1, 1)
+                end
+            end
+        end
+        -- Hapus GUI
+        gui:Destroy()
+    end)
+
+    btnHeadless.MouseButton1Click:Connect(function()
+        headlessActive = not headlessActive
+        btnHeadless.Text = headlessActive and "Headless: ON" or "Headless: OFF"
+        btnHeadless.BackgroundColor3 = headlessActive and COLOR_ON or COLOR_OFF
+    end)
+
+    btnCrown.MouseButton1Click:Connect(function()
+        crownActive = not crownActive
+        btnCrown.Text = crownActive and "8-Bit Crown: ON" or "8-Bit Crown: OFF"
+        btnCrown.BackgroundColor3 = crownActive and COLOR_ON or COLOR_OFF
+    end)
+
+    btnHeightUp.MouseButton1Click:Connect(function()
+        heightOffset = heightOffset + 0.1
+        lblHeight.Text = "Tinggi Mahkota: " .. string.format("%.1f", heightOffset)
+    end)
+
+    btnHeightDown.MouseButton1Click:Connect(function()
+        heightOffset = heightOffset - 0.1
+        lblHeight.Text = "Tinggi Mahkota: " .. string.format("%.1f", heightOffset)
+    end)
+
+    btnScaleUp.MouseButton1Click:Connect(function()
+        crownScale = math.min(crownScale + 0.1, 5.0)
+        lblScale.Text = "Ukuran Mahkota: " .. string.format("%.1f", crownScale)
+    end)
+
+    btnScaleDown.MouseButton1Click:Connect(function()
+        crownScale = math.max(crownScale - 0.1, 0.1)
+        lblScale.Text = "Ukuran Mahkota: " .. string.format("%.1f", crownScale)
+    end)
+end
+
+task.spawn(buildGUI)
